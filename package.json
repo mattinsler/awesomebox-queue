@@ -1,0 +1,36 @@
+{
+  "name": "awesomebox-queue",
+  "description": "Queues used for awesomebox",
+  "version": "0.0.1",
+  "homepage": "https://github.com/mattinsler/awesomebox-queue",
+  "author": {
+    "name": "Matt Insler",
+    "email": "matt.insler@gmail.com",
+    "url": "http://www.mattinsler.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:mattinsler/awesomebox-queue.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mattinsler/awesomebox-queue/issues"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://github.com/mattinsler/awesomebox-queue/blob/master/LICENSE-MIT"
+    }
+  ],
+  "main": "dist/awesomebox-queue",
+  "engines": {
+    "node": ">= 0.8.0"
+  },
+  "dependencies": {
+    "redis-builder": "~0.8.3-1"
+  },
+  "devDependencies": {
+    "grunt": "~0.3.15",
+    "grunt-contrib": "~0.3.0"
+  },
+  "keywords": []
+}
