@@ -66,9 +66,85 @@
     };
 
     Queue.prototype.set_last_seen = function(id, callback) {
-      return callback()(this.opts.sow_key == null ? this.redis.set('sow:' + this.opts.sow_key, id, function(err) {
+      if (this.opts.sow_key == null) {
+        return callback();
+      }
+      return this.redis.set('sow:' + this.opts.sow_key, id, function(err) {
         return typeof callback === "function" ? callback(err) : void 0;
-      }) : void 0);
+      });
+    };
+
+    Queue.prototype.process = function(event, item_callback) {
+      var conn, on_message, on_subscribe, process_queue, queue, sow_key, _processing,
+        _this = this;
+      if (this.opts.sow_key == null) {
+        throw new Error('Must provide sow_key to use process');
+      }
+      queue = [];
+      if (this.opts.sow_key != null) {
+        sow_key = 'sow:' + this.opts.sow_key;
+      }
+      _processing = false;
+      process_queue = function() {
+        var process_item;
+        if (_processing === true) {
+          return;
+        }
+        _processing = true;
+        process_item = function() {
+          var id, item, next;
+          item = queue.shift();
+          if (item == null) {
+            _processing = false;
+            return;
+          }
+          id = item.$id;
+          next = function(err) {
+            if (err != null) {
+              console.log(err.stack);
+            }
+            return _this.set_last_seen(id, function(err) {
+              if (err != null) {
+                console.log(err.stack);
+              }
+              return process.nextTick(process_item);
+            });
+          };
+          return item_callback(item, next);
+        };
+        return process_item();
+      };
+      on_subscribe = function() {
+        return _this.redis.get(sow_key, function(err, sow_id) {
+          if (err != null) {
+            throw err;
+          }
+          return _this.read_all_since(event, sow_id, function(err, items) {
+            if (err != null) {
+              throw err;
+            }
+            if (items.length > 0) {
+              Array.prototype.unshift.apply(queue, items);
+            }
+            return process_queue();
+          });
+        });
+      };
+      on_message = function(channel, message) {
+        var msg;
+        try {
+          msg = JSON.parse(message);
+          queue.push(msg);
+          return process_queue();
+        } catch (err) {
+          err.message = 'Error in parsing messages' + err.message;
+          return console.log(err.stack);
+        }
+      };
+      conn = new builder(this.opts.redis);
+      conn.once('subscribe', on_subscribe);
+      conn.on('message', on_message);
+      return conn.subscribe('c:' + event);
     };
 
     Queue.prototype.listen = function(event, item_callback, connection_callback) {

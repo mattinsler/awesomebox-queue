@@ -43,8 +43,61 @@ class Queue
   
   set_last_seen: (id, callback) ->
     return callback() unless @opts.sow_key?
-      @redis.set 'sow:' + @opts.sow_key, id, (err) ->
-        callback?(err)
+    @redis.set 'sow:' + @opts.sow_key, id, (err) ->
+      callback?(err)
+  
+  process: (event, item_callback) ->
+    throw new Error('Must provide sow_key to use process') unless @opts.sow_key?
+    
+    queue = []
+    sow_key = 'sow:' + @opts.sow_key if @opts.sow_key?
+    
+    _processing = false
+    process_queue = =>
+      return if _processing is true
+      _processing = true
+      
+      process_item = =>
+        item = queue.shift()
+        unless item?
+          _processing = false
+          return
+      
+        id = item.$id
+        next = (err) =>
+          console.log(err.stack) if err?
+        
+          @set_last_seen id, (err) ->
+            console.log(err.stack) if err?
+            process.nextTick(process_item)
+      
+        item_callback(item, next)
+      
+      process_item()
+    
+    on_subscribe = =>
+      @redis.get sow_key, (err, sow_id) =>
+        throw err if err?
+        @read_all_since event, sow_id, (err, items) =>
+          throw err if err?
+          Array::unshift.apply(queue, items) if items.length > 0
+          process_queue()
+    
+    on_message = (channel, message) ->
+      try
+        msg = JSON.parse(message)
+        queue.push(msg)
+        process_queue()
+      catch err
+        err.message = 'Error in parsing messages' + err.message
+        console.log(err.stack)
+    
+    conn = new builder(@opts.redis)
+    conn.once('subscribe', on_subscribe)
+    conn.on('message', on_message)
+    conn.subscribe('c:' + event)
+    
+    
   
   listen: (event, item_callback, connection_callback) ->
     conn = @redis_subscriptions[event]
