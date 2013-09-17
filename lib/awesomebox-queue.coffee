@@ -27,6 +27,7 @@ class Queue
   read_one_since: (event, id, callback) ->
     @redis.zrangebyscore 'q:' + event, id or '-inf', '+inf', 'limit', 0, 1, (err, items) ->
       return callback(err) if err?
+      return callback() if items.length is 0
       try
         callback(null, JSON.parse(items[0]))
       catch err

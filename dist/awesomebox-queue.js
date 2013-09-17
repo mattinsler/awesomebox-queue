@@ -39,6 +39,9 @@
         if (err != null) {
           return callback(err);
         }
+        if (items.length === 0) {
+          return callback();
+        }
         try {
           return callback(null, JSON.parse(items[0]));
         } catch (err) {
