@@ -62,6 +62,12 @@
       });
     };
 
+    Queue.prototype.set_last_seen = function(id, callback) {
+      return callback()(this.opts.sow_key == null ? this.redis.set('sow:' + this.opts.sow_key, id, function(err) {
+        return typeof callback === "function" ? callback(err) : void 0;
+      }) : void 0);
+    };
+
     Queue.prototype.listen = function(event, item_callback, connection_callback) {
       var conn, on_message, queue, send_to_user, sow_key,
         _this = this;
@@ -80,9 +86,7 @@
         try {
           msg = JSON.parse(msg);
           send_to_user(msg);
-          if (sow_key != null) {
-            return _this.redis.set(sow_key, msg.$id);
-          }
+          return _this.set_last_seen(msg.$id);
         } catch (err) {
           err.message = 'Error in parsing messages' + err.message;
           return console.log(err.stack);
@@ -105,7 +109,7 @@
                   i = items[_i];
                   item_callback(i);
                 }
-                _this.redis.set(sow_key, items[items.length - 1].$id);
+                _this.set_last_seen(items[items.length - 1].$id);
               }
               return send_to_user = item_callback;
             });

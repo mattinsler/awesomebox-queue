@@ -40,6 +40,11 @@ class Queue
       catch err
         callback(err)
   
+  set_last_seen: (id, callback) ->
+    return callback() unless @opts.sow_key?
+      @redis.set 'sow:' + @opts.sow_key, id, (err) ->
+        callback?(err)
+  
   listen: (event, item_callback, connection_callback) ->
     conn = @redis_subscriptions[event]
     return connection_callback?(new Error('You are already listening for ' + event + ' events')) if conn?
@@ -54,7 +59,7 @@ class Queue
         msg = JSON.parse(msg)
         send_to_user(msg)
         # if state of the world is requested, then update the last seen id
-        @redis.set(sow_key, msg.$id) if sow_key?
+        @set_last_seen(msg.$id)
           
       catch err
         err.message = 'Error in parsing messages' + err.message
@@ -74,7 +79,7 @@ class Queue
               # send all items first, then send new items to user
               item_callback(i) for i in items
               # update last seen id
-              @redis.set(sow_key, items[items.length - 1].$id)
+              @set_last_seen(items[items.length - 1].$id)
             
             send_to_user = item_callback
       else
